@@ -7,12 +7,34 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use config::{Config, ConfigError};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
 use utoipa::{OpenApi, ToSchema};
 use utoipa_swagger_ui::SwaggerUi;
+
+#[derive(Debug, Deserialize)]
+struct AppConfig {
+    server_port: u16,
+    rust_log: String,
+    soroban_rpc_url: String,
+}
+
+fn load_config() -> Result<AppConfig, ConfigError> {
+    // Load .env file if present
+    dotenvy::dotenv().ok();
+
+    let settings = Config::builder()
+        .add_source(config::Environment::default())
+        .set_default("server_port", 8080)?
+        .set_default("rust_log", "info")?
+        .set_default("soroban_rpc_url", "https://soroban-testnet.stellar.org")?
+        .build()?;
+
+    settings.try_deserialize()
+}
 
 #[derive(Deserialize, ToSchema)]
 struct AnalyzeRequest {
@@ -72,6 +94,10 @@ struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
+    // Load configuration
+    let config = load_config().expect("Failed to load configuration");
+    println!("SoroScope initialized with config: {:?}", config);
+
     // CLI Argument Handling
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 && args[1] == "benchmark" {
@@ -116,7 +142,8 @@ async fn main() {
         .route("/analyze", post(analyze))
         .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080")
+    let bind_addr = format!("0.0.0.0:{}", config.server_port);
+    let listener = tokio::net::TcpListener::bind(&bind_addr)
         .await
         .unwrap();
 
