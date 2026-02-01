@@ -180,4 +180,8 @@ Please:
 - Add or update documentation when you change behavior
 
 ---
-Built with ❤️ by **SoroLabs**
+### 🧪 Live Analysis
+SoroScope now supports live simulation via the web dashboard. Connect your wallet, select a function, and get your **Contract Nutrition Label** instantly.
+
+---
+Built with ❤️ by **SoroLabs**. Powered by the Soroban ecosystem.
