@@ -1,10 +1,11 @@
-
 import { WalletModal } from "../components/WalletModal";
 import { ConnectButton } from "../components/ConnectButton";
-import { useState, useEffect } from 'react';
-import { DynamicForm } from '../components/DynamicForm';
+import { useState } from 'react';
 import { ResultViewer } from '../components/Resultviewer';
 import { InvocationHistory, useInvocationHistory } from '../components/InnovocationHistory';
+import { NutritionLabel } from '../components/NutritionLabel';
+import { FunctionSidebar } from '../components/FunctionSidebar';
+import { ContractInteraction } from '../components/ContractInteraction';
 import { MOCK_CONTRACT_FUNCTIONS, generateMockResult, generateMockResourceCost } from '../lib/sorobantypes';
 import type { ContractFunction, InvocationResult } from '../lib/sorobantypes';
 
@@ -19,15 +20,27 @@ export default function Home() {
   const handleSimulate = async (inputs: Record<string, any>) => {
     setLoading(true);
     try {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const response = await fetch('http://localhost:8080/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contract_id: contractId,
+          function_name: selectedFunction.name,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend error: ${response.statusText}`);
+      }
+
+      const report = await response.json();
 
       const result: InvocationResult = {
         id: Math.random().toString(36).substring(7),
         functionName: selectedFunction.name,
         inputs,
         result: generateMockResult(selectedFunction.name, inputs),
-        resourceCost: generateMockResourceCost(),
+        resourceCost: report,
         timestamp: Date.now(),
         success: true,
       };
@@ -61,11 +74,11 @@ export default function Home() {
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          display:'flex',
-          justifyContent:'space-between'
+          display: 'flex',
+          justifyContent: 'space-between'
         }}
       >
-        <div style={{ maxWidth: '1200px', paddingLeft:'140px'}}>
+        <div style={{ maxWidth: '1200px', paddingLeft: '140px' }}>
           <h1 style={{ margin: '0 0 12px 0', fontSize: '28px', fontWeight: '700', color: '#00d9ff', letterSpacing: '0.5px' }}>
             SoroScope
           </h1>
@@ -74,10 +87,10 @@ export default function Home() {
           </p>
         </div>
 
-         {/* Wallet Connection in Top-Right */}
-          <div className="pr-[125px]">
-            <ConnectButton />
-         </div>
+        {/* Wallet Connection in Top-Right */}
+        <div className="pr-[125px]">
+          <ConnectButton />
+        </div>
       </header>
 
       {/* Main Content */}
@@ -120,95 +133,20 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
           {/* Left Column - Function Selection & Form */}
           <div>
-            <div
-              style={{
-                backgroundColor: '#161b22',
-                borderRadius: '8px',
-                padding: '24px',
-                marginBottom: '24px',
-                border: '1px solid #30363d',
+            <FunctionSidebar
+              functions={MOCK_CONTRACT_FUNCTIONS}
+              selectedFunction={selectedFunction}
+              onSelect={(func) => {
+                setSelectedFunction(func);
+                setCurrentResult(null);
               }}
-            >
-              <h2
-                style={{
-                  margin: '0 0 16px 0',
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  color: '#58a6ff',
-                }}
-              >
-                Available Functions
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {MOCK_CONTRACT_FUNCTIONS.map((func) => (
-                  <button
-                    key={func.name}
-                    onClick={() => {
-                      setSelectedFunction(func);
-                      setCurrentResult(null);
-                    }}
-                    style={{
-                      padding: '12px 16px',
-                      backgroundColor:
-                        selectedFunction.name === func.name ? '#8957e5' : '#21262d',
-                      color: selectedFunction.name === func.name ? '#fff' : '#c9d1d9',
-                      border: selectedFunction.name === func.name ? '1px solid #8957e5' : '1px solid #30363d',
-                      borderRadius: '6px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontWeight: selectedFunction.name === func.name ? '600' : '500',
-                      transition: 'all 0.2s',
-                      fontSize: '14px',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedFunction.name !== func.name) {
-                        e.currentTarget.style.backgroundColor = '#21262d';
-                        e.currentTarget.style.borderColor = '#8957e5';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedFunction.name !== func.name) {
-                        e.currentTarget.style.backgroundColor = '#21262d';
-                        e.currentTarget.style.borderColor = '#30363d';
-                      }
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>{func.name}</span>
-                      <span style={{ fontSize: '12px', opacity: '0.7' }}>
-                        {func.inputs.length} args
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            />
 
-            {/* Form */}
-            <div
-              style={{
-                backgroundColor: '#161b22',
-                borderRadius: '8px',
-                padding: '24px',
-                border: '1px solid #30363d',
-              }}
-            >
-              <h2
-                style={{
-                  margin: '0 0 16px 0',
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  color: '#58a6ff',
-                }}
-              >
-                {selectedFunction.name}
-              </h2>
-              <DynamicForm
-                func={selectedFunction}
-                onSubmit={handleSimulate}
-                loading={loading}
-              />
-            </div>
+            <ContractInteraction
+              selectedFunction={selectedFunction}
+              loading={loading}
+              onSubmit={handleSimulate}
+            />
           </div>
 
           {/* Right Column - Results & History Tabs */}
@@ -269,7 +207,19 @@ export default function Home() {
               }}
             >
               {tab === 'explorer' ? (
-                <ResultViewer result={currentResult} />
+                <>
+                  <ResultViewer result={currentResult} />
+                  {currentResult?.resourceCost && (
+                    <div className="mt-4">
+                      <NutritionLabel
+                        cpu_instructions={currentResult.resourceCost.cpu_instructions}
+                        memory_bytes={currentResult.resourceCost.memory_bytes}
+                        ledger_read_bytes={currentResult.resourceCost.ledger_read_bytes}
+                        ledger_write_bytes={currentResult.resourceCost.ledger_write_bytes}
+                      />
+                    </div>
+                  )}
+                </>
               ) : (
                 <InvocationHistory onSelectResult={(result) => {
                   setCurrentResult(result);
@@ -361,9 +311,8 @@ export default function Home() {
           </div>
         </div>
       </main>
-       {/* Wallet Modal */}
-       <WalletModal />
+      {/* Wallet Modal */}
+      <WalletModal />
     </div>
   );
 }
-
