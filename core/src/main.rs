@@ -70,12 +70,19 @@ struct ResourceReport {
     tag = "Analysis"
 )]
 async fn analyze(Json(payload): Json<AnalyzeRequest>) -> Result<Json<ResourceReport>, AppError> {
-    // Placeholder implementation
+    tracing::info!(
+        "Analyzing request for contract: {}, function: {}",
+        payload.contract_id,
+        payload.function_name
+    );
+
+    // Placeholder: This will eventually call SimulationEngine
+    // For now, we return a success response that matches the expected frontend structure
     let report = ResourceReport {
-        cpu_instructions: 1000,
-        memory_bytes: 2048,
-        ledger_read_bytes: 512,
-        ledger_write_bytes: 256,
+        cpu_instructions: 1500,
+        memory_bytes: 3000,
+        ledger_read_bytes: 1024,
+        ledger_write_bytes: 512,
     };
     Ok(Json(report))
 }
@@ -104,6 +111,10 @@ async fn main() {
     // -------------------------------
     // Initialize Tracing / Logging
     // -------------------------------
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "info");
+    }
+
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer())

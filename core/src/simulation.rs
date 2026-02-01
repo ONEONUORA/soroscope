@@ -44,7 +44,7 @@ pub enum SimulationError {
 }
 
 /// Soroban resource consumption data
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct SorobanResources {
     /// CPU instructions consumed
     pub cpu_instructions: u64,
@@ -58,17 +58,7 @@ pub struct SorobanResources {
     pub transaction_size_bytes: u64,
 }
 
-impl Default for SorobanResources {
-    fn default() -> Self {
-        Self {
-            cpu_instructions: 0,
-            ram_bytes: 0,
-            ledger_read_bytes: 0,
-            ledger_write_bytes: 0,
-            transaction_size_bytes: 0,
-        }
-    }
-}
+
 
 /// Complete simulation result including resources and metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -247,10 +237,7 @@ impl SimulationEngine {
 
         let response = tokio::time::timeout(
             self.request_timeout,
-            self.client
-                .post(&self.rpc_url)
-                .json(&request)
-                .send(),
+            self.client.post(&self.rpc_url).json(&request).send(),
         )
         .await
         .map_err(|_| SimulationError::NodeTimeout)?
@@ -272,16 +259,15 @@ impl SimulationEngine {
             )));
         }
 
-        let rpc_response: SimulateTransactionResponse = response
-            .json()
-            .await
-            .map_err(|e| SimulationError::RpcRequestFailed(format!("Failed to parse response: {}", e)))?;
+        let rpc_response: SimulateTransactionResponse = response.json().await.map_err(|e| {
+            SimulationError::RpcRequestFailed(format!("Failed to parse response: {}", e))
+        })?;
 
         // Handle RPC errors
         match rpc_response.result {
             ResponseResult::Error { error } => {
                 tracing::error!("RPC error (code {}): {}", error.code, error.message);
-                
+
                 // Specific error handling
                 match error.code {
                     -32600 => Err(SimulationError::InvalidContract(
@@ -290,12 +276,14 @@ impl SimulationEngine {
                     -32601 => Err(SimulationError::RpcRequestFailed(
                         "Method not found".to_string(),
                     )),
-                    -32602 => Err(SimulationError::InvalidContract(
-                        format!("Invalid parameters: {}", error.message),
-                    )),
-                    -32603 => Err(SimulationError::RpcRequestFailed(
-                        format!("Internal error: {}", error.message),
-                    )),
+                    -32602 => Err(SimulationError::InvalidContract(format!(
+                        "Invalid parameters: {}",
+                        error.message
+                    ))),
+                    -32603 => Err(SimulationError::RpcRequestFailed(format!(
+                        "Internal error: {}",
+                        error.message
+                    ))),
                     _ => Err(SimulationError::RpcRequestFailed(format!(
                         "RPC error {}: {}",
                         error.code, error.message
@@ -316,25 +304,19 @@ impl SimulationEngine {
     ) -> Result<SimulationResult, SimulationError> {
         let resources = if let Some(cost) = rpc_result.cost {
             // Parse CPU instructions
-            let cpu_instructions = cost
-                .cpu_insns
-                .parse::<u64>()
-                .unwrap_or_else(|_| {
-                    tracing::warn!("Failed to parse cpu_insns, using 0");
-                    0
-                });
+            let cpu_instructions = cost.cpu_insns.parse::<u64>().unwrap_or_else(|_| {
+                tracing::warn!("Failed to parse cpu_insns, using 0");
+                0
+            });
 
             // Parse memory bytes
-            let ram_bytes = cost
-                .mem_bytes
-                .parse::<u64>()
-                .unwrap_or_else(|_| {
-                    tracing::warn!("Failed to parse mem_bytes, using 0");
-                    0
-                });
+            let ram_bytes = cost.mem_bytes.parse::<u64>().unwrap_or_else(|_| {
+                tracing::warn!("Failed to parse mem_bytes, using 0");
+                0
+            });
 
             // Extract footprint information from transaction_data
-            let (ledger_read_bytes, ledger_write_bytes) = 
+            let (ledger_read_bytes, ledger_write_bytes) =
                 self.extract_footprint_from_xdr(&rpc_result.transaction_data);
 
             SorobanResources {
@@ -409,10 +391,7 @@ impl SimulationEngine {
     }
 
     /// Calculate the estimated size of ledger keys in bytes
-    fn calculate_ledger_keys_size(
-        &self,
-        ledger_keys: &soroban_sdk::xdr::VecM<LedgerKey>,
-    ) -> u64 {
+    fn calculate_ledger_keys_size(&self, ledger_keys: &soroban_sdk::xdr::VecM<LedgerKey>) -> u64 {
         let mut total_bytes: u64 = 0;
 
         for ledger_key in ledger_keys.iter() {
@@ -444,7 +423,7 @@ impl SimulationEngine {
                 LedgerKey::ConfigSetting(_) => 8,
                 LedgerKey::Ttl(_) => 32,
             };
-            total_bytes += key_size as u64;
+            total_bytes += key_size;
         }
 
         total_bytes
@@ -473,8 +452,7 @@ impl SimulationEngine {
             ScVal::Map(Some(map)) => {
                 map.iter()
                     .map(|entry| {
-                        self.estimate_scval_size(&entry.key)
-                            + self.estimate_scval_size(&entry.val)
+                        self.estimate_scval_size(&entry.key) + self.estimate_scval_size(&entry.val)
                     })
                     .sum::<u64>()
                     + 4
@@ -494,7 +472,7 @@ impl SimulationEngine {
         let cpu_cost = resources.cpu_instructions / 10000;
         let ram_cost = resources.ram_bytes / 1024;
         let ledger_cost = (resources.ledger_read_bytes + resources.ledger_write_bytes) / 1024;
-        
+
         cpu_cost + ram_cost + ledger_cost
     }
 
@@ -522,9 +500,9 @@ impl SimulationEngine {
     /// Uses a placeholder source account since simulation doesn't require a real signature.
     fn create_upload_transaction(&self, wasm_base64: &str) -> Result<String, SimulationError> {
         // Decode the WASM from base64
-        let wasm_bytes = BASE64
-            .decode(wasm_base64)
-            .map_err(|e| SimulationError::XdrError(format!("Failed to decode WASM base64: {}", e)))?;
+        let wasm_bytes = BASE64.decode(wasm_base64).map_err(|e| {
+            SimulationError::XdrError(format!("Failed to decode WASM base64: {}", e))
+        })?;
 
         // Create the UploadWasm host function
         let host_function = HostFunction::UploadContractWasm(
@@ -603,13 +581,13 @@ impl SimulationEngine {
         // Build the transaction
         let transaction = Transaction {
             source_account,
-            fee: 100, // Base fee in stroops
+            fee: 100,                   // Base fee in stroops
             seq_num: SequenceNumber(0), // Placeholder sequence number
             cond: Preconditions::None,
             memo: Memo::None,
-            operations: vec![operation]
-                .try_into()
-                .map_err(|_| SimulationError::XdrError("Failed to create operations".to_string()))?,
+            operations: vec![operation].try_into().map_err(|_| {
+                SimulationError::XdrError("Failed to create operations".to_string())
+            })?,
             ext: TransactionExt::V0,
         };
 
@@ -687,21 +665,18 @@ impl SimulationEngine {
             let bytes = hex::decode(hex_str).map_err(|e| {
                 SimulationError::InvalidContract(format!("Invalid hex bytes: {}", e))
             })?;
-            return Ok(ScVal::Bytes(
-                bytes
-                    .try_into()
-                    .map_err(|_| SimulationError::InvalidContract("Bytes too large".to_string()))?,
-            ));
+            return Ok(ScVal::Bytes(bytes.try_into().map_err(|_| {
+                SimulationError::InvalidContract("Bytes too large".to_string())
+            })?));
         }
 
         // Quoted string
         if arg.starts_with('"') && arg.ends_with('"') && arg.len() >= 2 {
             let s = &arg[1..arg.len() - 1];
-            let string_m: StringM = s
-                .as_bytes()
-                .to_vec()
-                .try_into()
-                .map_err(|_| SimulationError::InvalidContract("String too large".to_string()))?;
+            let string_m: StringM =
+                s.as_bytes().to_vec().try_into().map_err(|_| {
+                    SimulationError::InvalidContract("String too large".to_string())
+                })?;
             return Ok(ScVal::String(string_m.into()));
         }
 
@@ -734,11 +709,11 @@ impl SimulationEngine {
 
         match strkey {
             Strkey::Contract(contract) => Ok(ScAddress::Contract(Hash(contract.0))),
-            Strkey::PublicKeyEd25519(pubkey) => Ok(ScAddress::Account(
-                soroban_sdk::xdr::AccountId(soroban_sdk::xdr::PublicKey::PublicKeyTypeEd25519(
-                    Uint256(pubkey.0),
-                )),
-            )),
+            Strkey::PublicKeyEd25519(pubkey) => {
+                Ok(ScAddress::Account(soroban_sdk::xdr::AccountId(
+                    soroban_sdk::xdr::PublicKey::PublicKeyTypeEd25519(Uint256(pubkey.0)),
+                )))
+            }
             _ => Err(SimulationError::InvalidContract(
                 "Address must be a contract (C...) or account (G...) address".to_string(),
             )),
@@ -952,7 +927,8 @@ mod tests {
     fn test_parse_contract_id_invalid_prefix() {
         let engine = SimulationEngine::new("https://test.com".to_string());
 
-        let result = engine.parse_contract_id("GDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC");
+        let result =
+            engine.parse_contract_id("GDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC");
         assert!(matches!(result, Err(SimulationError::InvalidContract(_))));
     }
 
