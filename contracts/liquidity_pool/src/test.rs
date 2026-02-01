@@ -10,13 +10,13 @@ fn test_basic_flow() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     // Setup tokens
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_client = soroban_sdk::token::Client::new(&e, &token_a);
     let token_b_client = soroban_sdk::token::Client::new(&e, &token_b);
@@ -24,7 +24,7 @@ fn test_basic_flow() {
     let user1 = Address::generate(&e);
     let user2 = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     // Check initialize
     client.initialize(&token_a, &token_b);
@@ -67,12 +67,12 @@ fn test_double_initialization() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     client.initialize(&token_a, &token_b);
     // Should panic with AlreadyInitialized error
@@ -85,19 +85,19 @@ fn test_swap_insufficient_liquidity() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
 
     let user = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
@@ -116,19 +116,19 @@ fn test_swap_slippage_exceeded() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
 
     let user = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
@@ -147,19 +147,19 @@ fn test_withdraw_insufficient_shares() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
 
     let user = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
@@ -177,19 +177,19 @@ fn test_token_interface() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
 
     let user1 = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
@@ -217,12 +217,12 @@ fn test_transfer() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
@@ -230,7 +230,7 @@ fn test_transfer() {
     let user1 = Address::generate(&e);
     let user2 = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
@@ -254,12 +254,12 @@ fn test_transfer_insufficient_balance() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
@@ -267,7 +267,7 @@ fn test_transfer_insufficient_balance() {
     let user1 = Address::generate(&e);
     let user2 = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
@@ -285,19 +285,19 @@ fn test_events() {
     let e = Env::default();
     e.mock_all_auths();
 
-    let contract_id = e.register_contract(None, LiquidityPool);
+    let contract_id = e.register(LiquidityPool, ());
     let client = LiquidityPoolClient::new(&e, &contract_id);
 
     let admin = Address::generate(&e);
-    let token_a = e.register_stellar_asset_contract(admin.clone());
-    let token_b = e.register_stellar_asset_contract(admin.clone());
+    let token_a = e.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_b = e.register_stellar_asset_contract_v2(admin.clone()).address();
 
     let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
     let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
 
     let user = Address::generate(&e);
 
-    e.budget().reset_unlimited();
+    e.cost_estimate().budget().reset_unlimited();
 
     client.initialize(&token_a, &token_b);
 
