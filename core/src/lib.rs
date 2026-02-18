@@ -57,7 +57,6 @@ pub fn profile_contract(wasm: &[u8]) -> Result<ResourceReport, ProfileError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json;
 
     #[test]
     fn test_profile_contract_with_valid_wasm() {
