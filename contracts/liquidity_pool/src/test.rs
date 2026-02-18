@@ -1,4 +1,5 @@
 #![cfg(test)]
+
 use super::*;
 use soroban_sdk::{
     testutils::{Address as _, Events},
@@ -348,5 +349,5 @@ fn test_events() {
     let events = e.events().all();
 
     // Just verify we have events (includes token transfers + our custom events)
-    assert!(events.len() > 0);
+    assert!(!events.is_empty());
 }
