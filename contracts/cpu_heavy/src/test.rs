@@ -6,7 +6,7 @@ use soroban_sdk::{Env, Vec};
 #[test]
 fn test_benchmarks_run_successfully() {
     let env = Env::default();
-    let contract_id = env.register_contract(None, CpuHeavyContract);
+    let contract_id = env.register(CpuHeavyContract, ());
     let client = CpuHeavyContractClient::new(&env, &contract_id);
 
     // Test Fibonacci
@@ -30,7 +30,7 @@ fn test_benchmarks_run_successfully() {
 #[test]
 fn test_combined_benchmark() {
     let env = Env::default();
-    let contract_id = env.register_contract(None, CpuHeavyContract);
+    let contract_id = env.register(CpuHeavyContract, ());
     let client = CpuHeavyContractClient::new(&env, &contract_id);
 
     let results = client.combined_benchmark(&100, &20, &50);
@@ -42,7 +42,7 @@ fn test_combined_benchmark() {
 #[should_panic(expected = "input too large")]
 fn test_safety_limits() {
     let env = Env::default();
-    let contract_id = env.register_contract(None, CpuHeavyContract);
+    let contract_id = env.register(CpuHeavyContract, ());
     let client = CpuHeavyContractClient::new(&env, &contract_id);
 
     client.fibonacci_iterative(&60_000);
