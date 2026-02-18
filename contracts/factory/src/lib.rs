@@ -44,7 +44,10 @@ impl LiquidityPoolFactory {
             .sha256(&(token_0.clone(), token_1.clone()).to_xdr(&env));
 
         // 4. Initialize the deployed contract
-        let deployed_address = env.deployer().with_current_contract(salt).deploy_v2(wasm_hash, soroban_sdk::vec![&env]);
+        let deployed_address = env
+            .deployer()
+            .with_current_contract(salt)
+            .deploy_v2(wasm_hash, soroban_sdk::Vec::<soroban_sdk::Val>::new(&env));
 
         // We need to call the `initialize` function on the new contract.
         // Assuming the LP contract has `fn initialize(e: Env, token_a: Address, token_b: Address)`

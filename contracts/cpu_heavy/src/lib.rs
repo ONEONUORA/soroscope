@@ -71,7 +71,7 @@ impl CpuHeavyContract {
     }
 
     pub fn nested_loop_burn(_env: Env, outer: u32, inner: u32) -> u64 {
-        if outer.checked_mul(inner).unwrap_or(u32::MAX) > MAX_LOOP_OPS {
+        if outer.saturating_mul(inner) > MAX_LOOP_OPS {
             panic!("total ops too large");
         }
 

@@ -3,7 +3,10 @@ use soroban_sdk::{Address, Env};
 
 pub fn read_balance(e: &Env, addr: Address) -> i128 {
     let key = DataKey::Balance(addr);
-    e.storage().persistent().get::<DataKey, i128>(&key).unwrap_or_default()
+    e.storage()
+        .persistent()
+        .get::<DataKey, i128>(&key)
+        .unwrap_or_default()
 }
 
 fn write_balance(e: &Env, addr: Address, amount: i128) {
