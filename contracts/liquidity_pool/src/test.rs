@@ -871,3 +871,81 @@ fn test_burn_insufficient_shares() {
     // Try to burn more than user has
     client.burn(&user, &2000);
 }
+
+// ===== Zero-Value Edge Case Tests =====
+
+#[test]
+fn test_deposit_zero_amount() {
+    let e = Env::default();
+    e.mock_all_auths();
+
+    let contract_id = e.register(LiquidityPool, ());
+    let client = LiquidityPoolClient::new(&e, &contract_id);
+
+    let admin = Address::generate(&e);
+    let token_a = e
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+    let token_b = e
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
+
+    let token_a_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_a);
+    let token_b_admin = soroban_sdk::token::StellarAssetClient::new(&e, &token_b);
+
+    let user = Address::generate(&e);
+
+    e.cost_estimate().budget().reset_unlimited();
+
+    client.initialize(&admin, &token_a, &token_b);
+
+    // Mint tokens so the user has balance for subsequent tests
+    token_a_admin.mint(&user, &10000);
+    token_b_admin.mint(&user, &10000);
+
+    // --- Scenario 1: First deposit with both amounts = 0 ---
+    // sqrt(0 * 0) = 0, so 0 shares should be minted without panicking.
+    let shares = client.deposit(&user, &0, &0);
+    assert_eq!(shares, 0, "Depositing (0, 0) as first liquidity must mint 0 shares");
+    assert_eq!(client.total_supply(), 0, "Total supply must remain 0 after zero deposit");
+
+    // --- Scenario 2: Seed the pool with real liquidity, then deposit zero ---
+    let initial_shares = client.deposit(&user, &1000, &1000);
+    assert_eq!(initial_shares, 1000, "Initial deposit should mint sqrt(1000*1000) = 1000 shares");
+
+    let token_a_client = soroban_sdk::token::Client::new(&e, &token_a);
+    let token_b_client = soroban_sdk::token::Client::new(&e, &token_b);
+    let balance_a_before = token_a_client.balance(&user);
+    let balance_b_before = token_b_client.balance(&user);
+
+    // Deposit 0 of each into a pool that already has reserves
+    // Proportional formula: min(0 * total / reserve_a, 0 * total / reserve_b) = 0
+    let zero_shares = client.deposit(&user, &0, &0);
+    assert_eq!(zero_shares, 0, "Depositing (0, 0) into funded pool must mint 0 shares");
+    assert_eq!(
+        client.total_supply(),
+        initial_shares,
+        "Total supply must be unchanged after zero deposit"
+    );
+
+    // Verify user token balances are unchanged (no tokens transferred)
+    assert_eq!(
+        token_a_client.balance(&user),
+        balance_a_before,
+        "Token A balance must be unchanged after zero deposit"
+    );
+    assert_eq!(
+        token_b_client.balance(&user),
+        balance_b_before,
+        "Token B balance must be unchanged after zero deposit"
+    );
+
+    // --- Scenario 3: Only one amount is zero on initial-like deposit ---
+    // Deposit with amount_a = 0 and amount_b > 0 into the funded pool
+    // min(0 * total / reserve_a, amount_b * total / reserve_b) = 0
+    let one_zero_shares = client.deposit(&user, &0, &500);
+    assert_eq!(
+        one_zero_shares, 0,
+        "Depositing (0, 500) must mint 0 shares (limited by zero side)"
+    );
+}
